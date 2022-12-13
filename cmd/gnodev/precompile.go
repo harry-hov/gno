@@ -13,19 +13,21 @@ import (
 )
 
 type precompileOptions struct {
-	Verbose     bool   `flag:"verbose" help:"verbose"`
-	SkipFmt     bool   `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
-	GoBinary    string `flag:"go-binary" help:"go binary to use for building"`
-	GofmtBinary string `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
-	Output      string `flag:"output" help:"output directory"`
+	Verbose     bool            `flag:"verbose" help:"verbose"`
+	SkipFmt     bool            `flag:"skip-fmt" help:"do not check syntax of generated .go files"`
+	GoBinary    string          `flag:"go-binary" help:"go binary to use for building"`
+	GofmtBinary string          `flag:"go-binary" help:"gofmt binary to use for syntax checking"`
+	Output      string          `flag:"output" help:"output directory"`
+	skipPkgs    map[string]bool `flag:"-"`
 }
 
-var defaultPrecompileOptions = precompileOptions{
+var defaultPrecompileOptions = &precompileOptions{
 	Verbose:     false,
 	SkipFmt:     false,
 	GoBinary:    "go",
 	GofmtBinary: "gofmt",
 	Output:      ".",
+	skipPkgs:    make(map[string]bool),
 }
 
 func precompileApp(cmd *command.Command, args []string, iopts interface{}) error {
@@ -33,6 +35,10 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 	if len(args) < 1 {
 		cmd.ErrPrintfln("Usage: precompile [precompile flags] [packages]")
 		return errors.New("invalid args")
+	}
+
+	if opts.skipPkgs == nil {
+		opts.skipPkgs = make(map[string]bool)
 	}
 
 	// precompile .gno files.
@@ -43,7 +49,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 
 	errCount := 0
 	for _, filepath := range paths {
-		err = precompileFile(filepath, opts)
+		err = precompileFile(filepath, &opts)
 		if err != nil {
 			err = fmt.Errorf("%s: precompile: %w", filepath, err)
 			cmd.ErrPrintfln("%s", err.Error())
@@ -58,7 +64,18 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 	return nil
 }
 
-func precompilePkg(pkgPath string, opts precompileOptions) error {
+func precompilePkg(pkgPath string, opts *precompileOptions) error {
+	if opts.Output != defaultPrecompileOptions.Output {
+		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0o755); err != nil {
+			return err
+		}
+	}
+
+	if opts.skipPkgs[pkgPath] {
+		return nil
+	}
+	opts.skipPkgs[pkgPath] = true
+
 	files, err := filepath.Glob(filepath.Join(pkgPath, "*.gno"))
 	if err != nil {
 		log.Fatal(err)
@@ -73,7 +90,7 @@ func precompilePkg(pkgPath string, opts precompileOptions) error {
 	return nil
 }
 
-func precompileFile(srcPath string, opts precompileOptions) error {
+func precompileFile(srcPath string, opts *precompileOptions) error {
 	shouldCheckFmt := !opts.SkipFmt
 	verbose := opts.Verbose
 	gofmt := opts.GofmtBinary
@@ -108,15 +125,27 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 	}
 
 	// preprocess.
-	transformed, err := gno.Precompile(string(source), tags, srcPath)
+	f, transformed, err := gno.Precompile(string(source), tags, srcPath)
 	if err != nil {
 		return fmt.Errorf("%w", err)
 	}
 
+	// get imported package path
+	var importPkgPaths []string
+	for _, i := range f.Imports {
+		importPath := i.Path.Value[1 : len(i.Path.Value)-1]
+		prefix := "github.com/gnolang/gno"
+		if strings.HasPrefix(importPath, prefix) {
+			res := strings.TrimPrefix(importPath, prefix)
+			importPkgPaths = append(importPkgPaths, "."+res)
+		}
+	}
+
 	// write .go file.
+	pkgPath := filepath.Dir(srcPath)
 	var targetPath string
 	if opts.Output != defaultPrecompileOptions.Output {
-		targetPath = filepath.Join(opts.Output, targetFilename)
+		targetPath = filepath.Join(opts.Output, pkgPath, targetFilename)
 	} else {
 		dir := filepath.Dir(srcPath)
 		targetPath = filepath.Join(dir, targetFilename)
@@ -132,6 +161,11 @@ func precompileFile(srcPath string, opts precompileOptions) error {
 		if err != nil {
 			return fmt.Errorf("check .go file: %w", err)
 		}
+	}
+
+	// precompile imported packages
+	for _, path := range importPkgPaths {
+		precompilePkg(path, opts)
 	}
 
 	return nil
