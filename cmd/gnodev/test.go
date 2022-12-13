@@ -54,6 +54,18 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// go.mod
+	modPath := filepath.Join(tempdirRoot, "go.mod")
+	out, err := makeTestGoMod()
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(modPath, []byte(out), 0o644)
+	if err != nil {
+		return fmt.Errorf("write .mod file: %w", err)
+	}
+
 	defer os.RemoveAll(tempdirRoot)
 
 	// guess opts.RootDir
@@ -80,13 +92,11 @@ func testApp(cmd *command.Command, args []string, iopts interface{}) error {
 			if verbose {
 				cmd.ErrPrintfln("=== PREC  %s", pkgPath)
 			}
-			pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
-			tempdir := filepath.Join(tempdirRoot, pkgPathSafe)
-			if err = os.MkdirAll(tempdir, 0o755); err != nil {
-				log.Fatal(err)
-			}
-			precompileOpts := precompileOptions{
-				Output: tempdir,
+			// pkgPathSafe := strings.ReplaceAll(pkgPath, "/", "~")
+			tempdir := filepath.Join(tempdirRoot, pkgPath)
+			precompileOpts := &precompileOptions{
+				Output:   tempdirRoot,
+				skipPkgs: make(map[string]bool),
 			}
 			err := precompilePkg(pkgPath, precompileOpts)
 			if err != nil {

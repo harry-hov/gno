@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"log"
@@ -103,4 +104,14 @@ func guessRootDir() string {
 	}
 	rootDir := strings.TrimSpace(string(out))
 	return rootDir
+}
+
+func makeTestGoMod() (string, error) {
+	var out bytes.Buffer
+
+	_, err := out.WriteString("module github.com/gnolang/gno\n\ngo 1.18\n")
+	if err != nil {
+		return "", fmt.Errorf("write to buffer: %w", err)
+	}
+	return out.String(), nil
 }
