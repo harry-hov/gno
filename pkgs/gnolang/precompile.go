@@ -190,6 +190,10 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	sort.Strings(files)
 	args := append([]string{"build", "-v", "-tags=gno"}, files...)
 	cmd := exec.Command(goBinary, args...)
+	rootDir, err := guessRootDir(fileOrPkg, goBinary)
+	if err == nil {
+		cmd.Dir = rootDir
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, string(out))
@@ -197,6 +201,22 @@ func PrecompileBuildPackage(fileOrPkg string, goBinary string) error {
 	}
 
 	return nil
+}
+
+func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
+	abs, err := filepath.Abs(fileOrPkg)
+	if err != nil {
+		return "", err
+	}
+	args := []string{"list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno"}
+	cmd := exec.Command(goBinary, args...)
+	cmd.Dir = abs
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("can't guess --root-dir")
+	}
+	rootDir := strings.TrimSpace(string(out))
+	return rootDir, nil
 }
 
 func precompileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
