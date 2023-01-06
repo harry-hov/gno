@@ -66,7 +66,7 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 
 func precompilePkg(pkgPath string, opts *precompileOptions) error {
 	if opts.Output != defaultPrecompileOptions.Output {
-		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0o777); err != nil {
 			return err
 		}
 	}
