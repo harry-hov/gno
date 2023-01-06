@@ -150,7 +150,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 		dir := filepath.Dir(srcPath)
 		targetPath = filepath.Join(dir, targetFilename)
 	}
-	err = os.WriteFile(targetPath, []byte(transformed), 0o644)
+	err = os.WriteFile(targetPath, []byte(transformed), 0o777)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
