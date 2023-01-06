@@ -65,16 +65,16 @@ func precompileApp(cmd *command.Command, args []string, iopts interface{}) error
 }
 
 func precompilePkg(pkgPath string, opts *precompileOptions) error {
-	if opts.Output != defaultPrecompileOptions.Output {
-		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0o777); err != nil {
-			return err
-		}
-	}
-
 	if opts.skipPkgs[pkgPath] {
 		return nil
 	}
 	opts.skipPkgs[pkgPath] = true
+
+	if opts.Output != defaultPrecompileOptions.Output {
+		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0755); err != nil {
+			return err
+		}
+	}
 
 	files, err := filepath.Glob(filepath.Join(pkgPath, "*.gno"))
 	if err != nil {
@@ -150,7 +150,7 @@ func precompileFile(srcPath string, opts *precompileOptions) error {
 		dir := filepath.Dir(srcPath)
 		targetPath = filepath.Join(dir, targetFilename)
 	}
-	err = os.WriteFile(targetPath, []byte(transformed), 0o777)
+	err = os.WriteFile(targetPath, []byte(transformed), 0755)
 	if err != nil {
 		return fmt.Errorf("write .go file: %w", err)
 	}
