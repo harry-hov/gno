@@ -71,7 +71,7 @@ func precompilePkg(pkgPath string, opts *precompileOptions) error {
 	opts.skipPkgs[pkgPath] = true
 
 	if opts.Output != defaultPrecompileOptions.Output {
-		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(opts.Output, pkgPath), os.ModeSticky|os.ModePerm); err != nil {
 			return err
 		}
 	}
