@@ -24,7 +24,7 @@ type precompileFlags struct {
 }
 
 var defaultPrecompileFlags = precompileFlags{
-	PrecompileImports: false,
+	PrecompileImports: true,
 	Verbose:           false,
 	SkipFmt:           false,
 	GoBinary:          "go",
