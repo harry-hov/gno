@@ -2,8 +2,10 @@ package gnomod
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // ErrGnoModNotFound is returned by [FindRootDir] when, even after traversing
@@ -33,4 +35,34 @@ func FindRootDir(absPath string) (string, error) {
 	}
 
 	return "", ErrGnoModNotFound
+}
+
+func extractPackageDir(dir string) string {
+	parts := strings.Split(dir, string(filepath.Separator))
+	var pkgDirParts []string
+
+	for _, part := range parts {
+		if part == "filetests" {
+			break
+		}
+		pkgDirParts = append(pkgDirParts, part)
+	}
+
+	return filepath.Join(pkgDirParts...)
+}
+
+func isFiletestsDir(dir string) bool {
+	absDirPath, err := filepath.Abs(dir)
+	if err != nil {
+		// TODO: don't use panic
+		panic(fmt.Errorf("isFiletestsDir(): %w", err))
+	}
+
+	parts := strings.Split(absDirPath, string(filepath.Separator))
+	for _, part := range parts {
+		if part == "filetests" {
+			return true
+		}
+	}
+	return false
 }

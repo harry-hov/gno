@@ -181,28 +181,16 @@ func SubPkgsFromPaths(paths []string) ([]*SubPkg, error) {
 
 	subPkgs := make([]*SubPkg, 0, len(paths))
 	for _, path := range paths {
-		subPkg := SubPkg{}
-
 		matches, err := filepath.Glob(filepath.Join(path, "*.gno"))
 		if err != nil {
 			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
 
-		subPkg.Dir = path
-		for _, match := range matches {
-			if strings.HasSuffix(match, "_test.gno") {
-				subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, match)
-				continue
-			}
-
-			if strings.HasSuffix(match, "_filetest.gno") {
-				subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, match)
-				continue
-			}
-			subPkg.GnoFiles = append(subPkg.GnoFiles, match)
+		subPkg, err := GnoFileSubPkg(matches)
+		if err != nil {
+			return nil, fmt.Errorf("failed to match pattern: %w", err)
 		}
-
-		subPkgs = append(subPkgs, &subPkg)
+		subPkgs = append(subPkgs, subPkg)
 	}
 
 	return subPkgs, nil
@@ -237,8 +225,7 @@ func GnoFileSubPkg(files []string) (*SubPkg, error) {
 			subPkg.TestGnoFiles = append(subPkg.TestGnoFiles, file)
 			continue
 		}
-
-		if strings.HasSuffix(file, "_filetest.gno") {
+		if isFiletestsDir(dir) {
 			subPkg.FiletestGnoFiles = append(subPkg.FiletestGnoFiles, file)
 			continue
 		}
